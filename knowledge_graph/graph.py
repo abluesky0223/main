@@ -1,78 +1,27 @@
-"""
-인메모리 지식 그래프 (Knowledge Graph)
+"""인메모리 지식 그래프 핵심 클래스.
 
-사람의 사고방식처럼 "엔티티(노드)"와 "관계(엣지)"로 지식을 표현합니다.
-예시:
-    - Alice --[KNOWS]--> Bob
-    - Bob --[WORKS_AT]--> Google
-    - Google --[LOCATED_IN]--> SiliconValley
+사용 예시:
+    kg = KnowledgeGraph()
+    kg.add_node("alice", "Person", name="Alice", age=30)
+    kg.add_node("bob", "Person", name="Bob")
+    kg.add_edge("alice", "bob", "KNOWS", since=2020)
+    kg.neighbors("alice")        # [Node("bob", ...)]
+    kg.find_path("alice", "bob") # ["alice", "bob"]
 """
 
 from __future__ import annotations
 
 from collections import deque
-from dataclasses import dataclass, field
 from typing import Optional
 
-
-class NodeNotFoundError(Exception):
-    """존재하지 않는 노드에 접근할 때 발생합니다."""
-
-
-class EdgeNotFoundError(Exception):
-    """존재하지 않는 엣지에 접근할 때 발생합니다."""
-
-
-@dataclass
-class Node:
-    """지식 그래프의 엔티티(개체)를 나타냅니다.
-
-    Attributes:
-        id: 고유 식별자. 예: "alice", "google"
-        label: 엔티티 종류. 예: "Person", "Company", "City"
-        properties: 엔티티의 속성. 예: {"name": "Alice", "age": 30}
-    """
-
-    id: str
-    label: str
-    properties: dict = field(default_factory=dict)
-
-    def __repr__(self) -> str:
-        return f"Node({self.id!r}, label={self.label!r}, props={self.properties})"
-
-
-@dataclass
-class Edge:
-    """두 노드 사이의 관계를 나타냅니다.
-
-    Attributes:
-        source: 출발 노드 id
-        target: 도착 노드 id
-        relation: 관계 종류. 예: "KNOWS", "WORKS_AT", "LOCATED_IN"
-        properties: 관계의 속성. 예: {"since": 2020, "weight": 0.8}
-    """
-
-    source: str
-    target: str
-    relation: str
-    properties: dict = field(default_factory=dict)
-
-    def __repr__(self) -> str:
-        return f"Edge({self.source!r} --[{self.relation}]--> {self.target!r})"
+from .exceptions import EdgeNotFoundError, NodeNotFoundError
+from .models import Edge, Node
 
 
 class KnowledgeGraph:
     """인메모리 지식 그래프.
 
-    노드(엔티티)와 엣지(관계)를 저장하고, 탐색 및 쿼리 기능을 제공합니다.
-
-    사용 예시:
-        kg = KnowledgeGraph()
-        kg.add_node("alice", "Person", name="Alice", age=30)
-        kg.add_node("bob", "Person", name="Bob")
-        kg.add_edge("alice", "bob", "KNOWS", since=2020)
-        kg.neighbors("alice")  # [Node("bob", ...)]
-        kg.find_path("alice", "bob")  # ["alice", "bob"]
+    노드(엔티티)와 엣지(관계)를 저장하고 탐색 기능을 제공합니다.
     """
 
     def __init__(self) -> None:
@@ -115,7 +64,7 @@ class KnowledgeGraph:
         Raises:
             NodeNotFoundError: 해당 id의 노드가 없을 때
         """
-        self.get_node(id)  # 존재 확인
+        self.get_node(id)
         self._nodes.pop(id)
         self._edges = [
             e for e in self._edges if e.source != id and e.target != id
@@ -139,8 +88,8 @@ class KnowledgeGraph:
         Raises:
             NodeNotFoundError: source 또는 target 노드가 없을 때
         """
-        self.get_node(source)  # source 존재 확인
-        self.get_node(target)  # target 존재 확인
+        self.get_node(source)
+        self.get_node(target)
         edge = Edge(source=source, target=target, relation=relation, properties=properties)
         self._edges.append(edge)
         return edge
@@ -191,7 +140,7 @@ class KnowledgeGraph:
         Raises:
             NodeNotFoundError: 해당 id의 노드가 없을 때
         """
-        self.get_node(id)  # 존재 확인
+        self.get_node(id)
         edges = self.get_edges(source=id, relation=relation)
         seen: set[str] = set()
         result: list[Node] = []
@@ -231,7 +180,7 @@ class KnowledgeGraph:
                     visited.add(neighbor)
                     queue.append(path + [neighbor])
 
-        return None  # 경로 없음
+        return None
 
     def subgraph(self, root: str, depth: int = 2) -> "KnowledgeGraph":
         """root에서 depth 깊이까지 BFS로 탐색한 부분 그래프를 반환합니다.
@@ -245,7 +194,7 @@ class KnowledgeGraph:
         """
         self.get_node(root)
 
-        visited: dict[str, int] = {root: 0}  # id → 탐색 깊이
+        visited: dict[str, int] = {root: 0}
         queue: deque[tuple[str, int]] = deque([(root, 0)])
 
         while queue:
@@ -260,13 +209,10 @@ class KnowledgeGraph:
 
         sub = KnowledgeGraph()
         for node_id in visited:
-            node = self._nodes[node_id]
-            sub._nodes[node_id] = node
-
+            sub._nodes[node_id] = self._nodes[node_id]
         for edge in self._edges:
             if edge.source in visited and edge.target in visited:
                 sub._edges.append(edge)
-
         return sub
 
     # ------------------------------------------------------------------ #
@@ -277,7 +223,4 @@ class KnowledgeGraph:
         return len(self._nodes)
 
     def __repr__(self) -> str:
-        return (
-            f"KnowledgeGraph("
-            f"nodes={len(self._nodes)}, edges={len(self._edges)})"
-        )
+        return f"KnowledgeGraph(nodes={len(self._nodes)}, edges={len(self._edges)})"
