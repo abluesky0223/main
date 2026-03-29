@@ -52,6 +52,45 @@ LEGEND = "\n".join(
     for label, c in COLORS.items()
 )
 
+# 인사이트: 경로 탐색 결과
+def fmt_path(p):
+    return " → ".join(p) if p else "경로 없음"
+
+INSIGHTS = [
+    {
+        "title": "OWL → LLM 경로",
+        "path":  fmt_path(kg.find_path("owl", "llm")),
+        "desc":  "표준(OWL)이 KG 스키마를 정의하고, KG가 RAG에 지식을 공급하고, RAG가 LLM을 강화하는 흐름"
+    },
+    {
+        "title": "Triple → Context 경로",
+        "path":  fmt_path(kg.find_path("triple", "context")),
+        "desc":  "온톨로지의 최소 단위 트리플이 KG를 거쳐 RAG의 컨텍스트로 변환되는 경로"
+    },
+    {
+        "title": "Inference → LLM 경로",
+        "path":  fmt_path(kg.find_path("inference", "llm")),
+        "desc":  "온톨로지 추론 능력이 RAG를 통해 LLM에 도달 — 두 단계로 직행"
+    },
+    {
+        "title": "세 패러다임 공통 허브",
+        "path":  ", ".join(sorted(
+            {n.id for n in kg.subgraph("ontology", depth=4).all_nodes()} &
+            {n.id for n in kg.subgraph("knowledge_graph", depth=4).all_nodes()} &
+            {n.id for n in kg.subgraph("rag", depth=4).all_nodes()} -
+            {"ontology", "knowledge_graph", "rag"}
+        )),
+        "desc":  "세 패러다임 모두에서 도달 가능한 노드 — RAG가 온톨로지·KG의 지식을 소비하는 접점"
+    },
+]
+
+INSIGHTS_HTML = "\n".join(f"""
+  <div class="insight">
+    <div class="insight-title">{i['title']}</div>
+    <div class="insight-path">{i['path']}</div>
+    <div class="insight-desc">{i['desc']}</div>
+  </div>""" for i in INSIGHTS)
+
 html = f"""<!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -60,19 +99,33 @@ html = f"""<!DOCTYPE html>
 <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
 <style>
   * {{ box-sizing: border-box; margin: 0; padding: 0; }}
-  body {{ font-family: "Helvetica Neue", sans-serif; background: #1a1a2e; color: #eee; }}
-  h1 {{ padding: 16px 20px 6px; font-size: 18px; color: #fff; }}
-  #legend {{ padding: 0 20px 12px; font-size: 12px; }}
-  #graph {{ width: 100%; height: calc(100vh - 90px); border-top: 1px solid #333; }}
-  #tooltip {{ position: fixed; bottom: 20px; left: 20px; background: rgba(0,0,0,.8);
+  body {{ font-family: "Helvetica Neue", sans-serif; background: #1a1a2e; color: #eee; display: flex; flex-direction: column; height: 100vh; }}
+  h1 {{ padding: 14px 20px 4px; font-size: 17px; color: #fff; flex-shrink: 0; }}
+  #legend {{ padding: 0 20px 8px; font-size: 12px; flex-shrink: 0; }}
+  #main {{ display: flex; flex: 1; overflow: hidden; }}
+  #graph {{ flex: 1; border-top: 1px solid #333; }}
+  #sidebar {{ width: 300px; background: #16213e; border-top: 1px solid #333; border-left: 1px solid #333;
+              overflow-y: auto; padding: 14px; flex-shrink: 0; }}
+  #sidebar h2 {{ font-size: 13px; color: #aaa; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px; }}
+  .insight {{ background: #0f3460; border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; }}
+  .insight-title {{ font-size: 12px; color: #4A90D9; font-weight: bold; margin-bottom: 4px; }}
+  .insight-path {{ font-size: 11px; color: #7ED321; font-family: monospace; margin-bottom: 5px; word-break: break-all; }}
+  .insight-desc {{ font-size: 11px; color: #bbb; line-height: 1.5; }}
+  #tooltip {{ position: fixed; bottom: 20px; left: 20px; background: rgba(0,0,0,.85);
               padding: 10px 14px; border-radius: 8px; font-size: 12px;
-              max-width: 280px; display: none; line-height: 1.6; }}
+              max-width: 240px; display: none; line-height: 1.6; z-index: 10; }}
 </style>
 </head>
 <body>
 <h1>온톨로지 · 지식그래프 · RAG 지식 구조</h1>
 <div id="legend">{LEGEND}</div>
-<div id="graph"></div>
+<div id="main">
+  <div id="graph"></div>
+  <div id="sidebar">
+    <h2>인사이트</h2>
+    {INSIGHTS_HTML}
+  </div>
+</div>
 <div id="tooltip"></div>
 <script>
 const nodes = new vis.DataSet({json.dumps(nodes_data, ensure_ascii=False)});

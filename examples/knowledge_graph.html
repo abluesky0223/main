@@ -6,13 +6,21 @@
 <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: "Helvetica Neue", sans-serif; background: #1a1a2e; color: #eee; }
-  h1 { padding: 16px 20px 6px; font-size: 18px; color: #fff; }
-  #legend { padding: 0 20px 12px; font-size: 12px; }
-  #graph { width: 100%; height: calc(100vh - 90px); border-top: 1px solid #333; }
-  #tooltip { position: fixed; bottom: 20px; left: 20px; background: rgba(0,0,0,.8);
+  body { font-family: "Helvetica Neue", sans-serif; background: #1a1a2e; color: #eee; display: flex; flex-direction: column; height: 100vh; }
+  h1 { padding: 14px 20px 4px; font-size: 17px; color: #fff; flex-shrink: 0; }
+  #legend { padding: 0 20px 8px; font-size: 12px; flex-shrink: 0; }
+  #main { display: flex; flex: 1; overflow: hidden; }
+  #graph { flex: 1; border-top: 1px solid #333; }
+  #sidebar { width: 300px; background: #16213e; border-top: 1px solid #333; border-left: 1px solid #333;
+              overflow-y: auto; padding: 14px; flex-shrink: 0; }
+  #sidebar h2 { font-size: 13px; color: #aaa; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px; }
+  .insight { background: #0f3460; border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; }
+  .insight-title { font-size: 12px; color: #4A90D9; font-weight: bold; margin-bottom: 4px; }
+  .insight-path { font-size: 11px; color: #7ED321; font-family: monospace; margin-bottom: 5px; word-break: break-all; }
+  .insight-desc { font-size: 11px; color: #bbb; line-height: 1.5; }
+  #tooltip { position: fixed; bottom: 20px; left: 20px; background: rgba(0,0,0,.85);
               padding: 10px 14px; border-radius: 8px; font-size: 12px;
-              max-width: 280px; display: none; line-height: 1.6; }
+              max-width: 240px; display: none; line-height: 1.6; z-index: 10; }
 </style>
 </head>
 <body>
@@ -22,7 +30,36 @@
 <span style="background:#E67E22;color:#fff;padding:3px 10px;border-radius:12px;margin:3px;display:inline-block;">Standard</span>
 <span style="background:#8E44AD;color:#fff;padding:3px 10px;border-radius:12px;margin:3px;display:inline-block;">Tool</span>
 <span style="background:#C0392B;color:#fff;padding:3px 10px;border-radius:12px;margin:3px;display:inline-block;">Component</span></div>
-<div id="graph"></div>
+<div id="main">
+  <div id="graph"></div>
+  <div id="sidebar">
+    <h2>인사이트</h2>
+    
+  <div class="insight">
+    <div class="insight-title">OWL → LLM 경로</div>
+    <div class="insight-path">owl → knowledge_graph → rag → llm</div>
+    <div class="insight-desc">표준(OWL)이 KG 스키마를 정의하고, KG가 RAG에 지식을 공급하고, RAG가 LLM을 강화하는 흐름</div>
+  </div>
+
+  <div class="insight">
+    <div class="insight-title">Triple → Context 경로</div>
+    <div class="insight-path">triple → knowledge_graph → rag → context</div>
+    <div class="insight-desc">온톨로지의 최소 단위 트리플이 KG를 거쳐 RAG의 컨텍스트로 변환되는 경로</div>
+  </div>
+
+  <div class="insight">
+    <div class="insight-title">Inference → LLM 경로</div>
+    <div class="insight-path">inference → rag → llm</div>
+    <div class="insight-desc">온톨로지 추론 능력이 RAG를 통해 LLM에 도달 — 두 단계로 직행</div>
+  </div>
+
+  <div class="insight">
+    <div class="insight-title">세 패러다임 공통 허브</div>
+    <div class="insight-path">chunk, context, embedding, llm, retriever, vector_db</div>
+    <div class="insight-desc">세 패러다임 모두에서 도달 가능한 노드 — RAG가 온톨로지·KG의 지식을 소비하는 접점</div>
+  </div>
+  </div>
+</div>
 <div id="tooltip"></div>
 <script>
 const nodes = new vis.DataSet([{"id": "ontology", "label": "온톨로지", "title": "<b>온톨로지</b><br>Paradigm<br><i>개념과 관계를 형식적으로 정의하는 지식 표현 체계</i>", "color": {"background": "#4A90D9", "border": "#2c6fad", "highlight": {"background": "#4A90D9", "border": "#fff"}}, "font": {"color": "#ffffff", "size": 13}, "shape": "ellipse", "size": 20}, {"id": "knowledge_graph", "label": "지식그래프", "title": "<b>지식그래프</b><br>Paradigm<br><i>엔티티와 관계를 그래프로 저장·탐색하는 구조</i>", "color": {"background": "#4A90D9", "border": "#2c6fad", "highlight": {"background": "#4A90D9", "border": "#fff"}}, "font": {"color": "#ffffff", "size": 13}, "shape": "ellipse", "size": 20}, {"id": "rag", "label": "RAG", "title": "<b>RAG</b><br>Paradigm<br><i>외부 지식을 검색해 LLM 생성에 활용하는 기법</i>", "color": {"background": "#4A90D9", "border": "#2c6fad", "highlight": {"background": "#4A90D9", "border": "#fff"}}, "font": {"color": "#ffffff", "size": 13}, "shape": "ellipse", "size": 20}, {"id": "triple", "label": "Triple", "title": "<b>Triple</b><br>Concept<br><i>주어-술어-목적어로 이루어진 지식의 최소 단위</i>", "color": {"background": "#27AE60", "border": "#1e8449", "highlight": {"background": "#27AE60", "border": "#fff"}}, "font": {"color": "#ffffff", "size": 13}, "shape": "ellipse", "size": 14}, {"id": "class", "label": "Class", "title": "<b>Class</b><br>Concept<br><i>동일한 속성을 가진 개체들의 집합</i>", "color": {"background": "#27AE60", "border": "#1e8449", "highlight": {"background": "#27AE60", "border": "#fff"}}, "font": {"color": "#ffffff", "size": 13}, "shape": "ellipse", "size": 14}, {"id": "property", "label": "Property", "title": "<b>Property</b><br>Concept<br><i>클래스 간 또는 클래스-값 간의 관계를 정의</i>", "color": {"background": "#27AE60", "border": "#1e8449", "highlight": {"background": "#27AE60", "border": "#fff"}}, "font": {"color": "#ffffff", "size": 13}, "shape": "ellipse", "size": 14}, {"id": "instance", "label": "Instance", "title": "<b>Instance</b><br>Concept<br><i>클래스의 구체적인 개별 개체</i>", "color": {"background": "#27AE60", "border": "#1e8449", "highlight": {"background": "#27AE60", "border": "#fff"}}, "font": {"color": "#ffffff", "size": 13}, "shape": "ellipse", "size": 14}, {"id": "inference", "label": "Inference", "title": "<b>Inference</b><br>Concept<br><i>정의된 규칙으로 새로운 지식을 자동 도출</i>", "color": {"background": "#27AE60", "border": "#1e8449", "highlight": {"background": "#27AE60", "border": "#fff"}}, "font": {"color": "#ffffff", "size": 13}, "shape": "ellipse", "size": 14}, {"id": "entity", "label": "Entity", "title": "<b>Entity</b><br>Concept<br><i>지식그래프의 노드: 실세계의 사물·개념·사람</i>", "color": {"background": "#27AE60", "border": "#1e8449", "highlight": {"background": "#27AE60", "border": "#fff"}}, "font": {"color": "#ffffff", "size": 13}, "shape": "ellipse", "size": 14}, {"id": "relation", "label": "Relation", "title": "<b>Relation</b><br>Concept<br><i>지식그래프의 엣지: 엔티티 간의 관계</i>", "color": {"background": "#27AE60", "border": "#1e8449", "highlight": {"background": "#27AE60", "border": "#fff"}}, "font": {"color": "#ffffff", "size": 13}, "shape": "ellipse", "size": 14}, {"id": "embedding", "label": "Embedding", "title": "<b>Embedding</b><br>Concept<br><i>텍스트·그래프를 고차원 벡터로 변환한 표현</i>", "color": {"background": "#27AE60", "border": "#1e8449", "highlight": {"background": "#27AE60", "border": "#fff"}}, "font": {"color": "#ffffff", "size": 13}, "shape": "ellipse", "size": 14}, {"id": "chunk", "label": "Chunk", "title": "<b>Chunk</b><br>Concept<br><i>문서를 검색 가능한 단위로 분할한 조각</i>", "color": {"background": "#27AE60", "border": "#1e8449", "highlight": {"background": "#27AE60", "border": "#fff"}}, "font": {"color": "#ffffff", "size": 13}, "shape": "ellipse", "size": 14}, {"id": "context", "label": "Context", "title": "<b>Context</b><br>Concept<br><i>LLM 프롬프트에 삽입되는 검색된 관련 정보</i>", "color": {"background": "#27AE60", "border": "#1e8449", "highlight": {"background": "#27AE60", "border": "#fff"}}, "font": {"color": "#ffffff", "size": 13}, "shape": "ellipse", "size": 14}, {"id": "query", "label": "Query", "title": "<b>Query</b><br>Concept<br><i>사용자의 질문 또는 검색 요청</i>", "color": {"background": "#27AE60", "border": "#1e8449", "highlight": {"background": "#27AE60", "border": "#fff"}}, "font": {"color": "#ffffff", "size": 13}, "shape": "ellipse", "size": 14}, {"id": "rdf", "label": "RDF", "title": "<b>RDF</b><br>Standard<br><i>트리플 기반 데이터 모델 표준 (W3C)</i>", "color": {"background": "#E67E22", "border": "#ca6f1e", "highlight": {"background": "#E67E22", "border": "#fff"}}, "font": {"color": "#ffffff", "size": 13}, "shape": "ellipse", "size": 14}, {"id": "owl", "label": "OWL", "title": "<b>OWL</b><br>Standard<br><i>온톨로지 기술 언어, RDF를 확장</i>", "color": {"background": "#E67E22", "border": "#ca6f1e", "highlight": {"background": "#E67E22", "border": "#fff"}}, "font": {"color": "#ffffff", "size": 13}, "shape": "ellipse", "size": 14}, {"id": "sparql", "label": "SPARQL", "title": "<b>SPARQL</b><br>Standard<br><i>RDF 그래프를 위한 쿼리 언어</i>", "color": {"background": "#E67E22", "border": "#ca6f1e", "highlight": {"background": "#E67E22", "border": "#fff"}}, "font": {"color": "#ffffff", "size": 13}, "shape": "ellipse", "size": 14}, {"id": "cypher", "label": "Cypher", "title": "<b>Cypher</b><br>Standard<br><i>프로퍼티 그래프를 위한 쿼리 언어 (Neo4j)</i>", "color": {"background": "#E67E22", "border": "#ca6f1e", "highlight": {"background": "#E67E22", "border": "#fff"}}, "font": {"color": "#ffffff", "size": 13}, "shape": "ellipse", "size": 14}, {"id": "neo4j", "label": "Neo4j", "title": "<b>Neo4j</b><br>Tool<br><i>프로퍼티 그래프 DB, Cypher 사용</i>", "color": {"background": "#8E44AD", "border": "#6c3483", "highlight": {"background": "#8E44AD", "border": "#fff"}}, "font": {"color": "#ffffff", "size": 13}, "shape": "ellipse", "size": 14}, {"id": "protege", "label": "Protégé", "title": "<b>Protégé</b><br>Tool<br><i>OWL 온톨로지 편집 도구</i>", "color": {"background": "#8E44AD", "border": "#6c3483", "highlight": {"background": "#8E44AD", "border": "#fff"}}, "font": {"color": "#ffffff", "size": 13}, "shape": "ellipse", "size": 14}, {"id": "weaviate", "label": "Weaviate", "title": "<b>Weaviate</b><br>Tool<br><i>벡터+그래프 하이브리드 검색 DB</i>", "color": {"background": "#8E44AD", "border": "#6c3483", "highlight": {"background": "#8E44AD", "border": "#fff"}}, "font": {"color": "#ffffff", "size": 13}, "shape": "ellipse", "size": 14}, {"id": "chromadb", "label": "ChromaDB", "title": "<b>ChromaDB</b><br>Tool<br><i>경량 임베딩 벡터 스토어</i>", "color": {"background": "#8E44AD", "border": "#6c3483", "highlight": {"background": "#8E44AD", "border": "#fff"}}, "font": {"color": "#ffffff", "size": 13}, "shape": "ellipse", "size": 14}, {"id": "llamaindex", "label": "LlamaIndex", "title": "<b>LlamaIndex</b><br>Tool<br><i>지식 인덱싱·RAG 오케스트레이션 프레임워크</i>", "color": {"background": "#8E44AD", "border": "#6c3483", "highlight": {"background": "#8E44AD", "border": "#fff"}}, "font": {"color": "#ffffff", "size": 13}, "shape": "ellipse", "size": 14}, {"id": "vector_db", "label": "Vector DB", "title": "<b>Vector DB</b><br>Component<br><i>고차원 임베딩을 저장하고 ANN 검색을 제공</i>", "color": {"background": "#C0392B", "border": "#922b21", "highlight": {"background": "#C0392B", "border": "#fff"}}, "font": {"color": "#ffffff", "size": 13}, "shape": "ellipse", "size": 14}, {"id": "retriever", "label": "Retriever", "title": "<b>Retriever</b><br>Component<br><i>질의와 유사한 청크를 검색하는 모듈</i>", "color": {"background": "#C0392B", "border": "#922b21", "highlight": {"background": "#C0392B", "border": "#fff"}}, "font": {"color": "#ffffff", "size": 13}, "shape": "ellipse", "size": 14}, {"id": "llm", "label": "LLM", "title": "<b>LLM</b><br>Component<br><i>대규모 언어 모델: 컨텍스트를 받아 답변 생성</i>", "color": {"background": "#C0392B", "border": "#922b21", "highlight": {"background": "#C0392B", "border": "#fff"}}, "font": {"color": "#ffffff", "size": 13}, "shape": "ellipse", "size": 14}, {"id": "encoder", "label": "Encoder", "title": "<b>Encoder</b><br>Component<br><i>텍스트를 임베딩 벡터로 변환하는 모델</i>", "color": {"background": "#C0392B", "border": "#922b21", "highlight": {"background": "#C0392B", "border": "#fff"}}, "font": {"color": "#ffffff", "size": 13}, "shape": "ellipse", "size": 14}]);
